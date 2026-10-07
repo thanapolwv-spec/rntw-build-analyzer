@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>RNTW Build Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Prompt:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#070914; --panel:#0e1226; --panel2:#141a36; --line:#252d57;
+  --text:#eef0ff; --muted:#8f98c4;
+  --blue:#38bdf8; --purple:#a78bfa; --gold:#f5c451; --green:#4ade80; --red:#fb7185;
+  --serif:'Cinzel','Times New Roman',serif; --sans:'Prompt','Sarabun','Segoe UI',Arial,sans-serif;
+  color-scheme:dark;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;font-family:var(--sans);color:var(--text);line-height:1.5;
+  background:
+   radial-gradient(900px 500px at 15% -10%,rgba(167,139,250,.18),transparent 60%),
+   radial-gradient(800px 500px at 90% 0%,rgba(56,189,248,.14),transparent 60%),
+   var(--void);min-height:100vh}
+.wrap{max-width:1120px;margin:auto;padding:20px 16px 48px}
+
+/* header */
+.hero{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;
+  padding:22px 0 20px;border-bottom:1px solid var(--line);margin-bottom:20px}
+.hero h1{font-family:var(--serif);font-weight:800;font-size:clamp(26px,5vw,40px);margin:0;letter-spacing:.02em;
+  color:var(--gold);text-shadow:0 0 24px rgba(245,196,81,.35)}
+.hero p{margin:4px 0 0;color:var(--muted)}
+.dmg{text-align:right}
+.dmg b{display:block;font-family:var(--serif);font-size:clamp(28px,6vw,44px);color:var(--blue);
+  text-shadow:0 0 22px rgba(56,189,248,.45);line-height:1.1}
+.dmg span{color:var(--muted);font-size:14px}
+
+/* layout */
+.cols{display:grid;grid-template-columns:5fr 7fr;gap:16px}
+.panel{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);
+  border-radius:14px;padding:18px}
+.panel h2{font-family:var(--serif);font-size:18px;margin:0 0 14px;color:var(--gold)}
+.mt{margin-top:16px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field label{display:block;font-size:13px;color:var(--muted);margin-bottom:5px}
+input,select{width:100%;padding:11px 12px;border-radius:8px;border:1px solid var(--line);
+  background:#080b1b;color:var(--text);font:500 16px var(--sans)}
+input:focus-visible,select:focus-visible,button:focus-visible,summary:focus-visible{
+  outline:2px solid var(--blue);outline-offset:2px}
+
+/* option cards */
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.opt{border-radius:12px;padding:14px;border:1px solid var(--line);background:#0a0e22}
+.opt.a{border-color:rgba(56,189,248,.55);box-shadow:inset 0 0 0 1px rgba(56,189,248,.12)}
+.opt.b{border-color:rgba(167,139,250,.55);box-shadow:inset 0 0 0 1px rgba(167,139,250,.12)}
+.opt h3{margin:0 0 10px;font-family:var(--serif);font-size:16px}
+.opt.a h3{color:var(--blue)} .opt.b h3{color:var(--purple)}
+.opt .field+.field{margin-top:10px}
+button.go{margin-top:14px;width:100%;padding:13px;border:0;border-radius:10px;cursor:pointer;
+  font:700 16px var(--sans);color:#0b0d1e;background:linear-gradient(90deg,var(--blue),var(--purple));
+  box-shadow:0 0 22px rgba(124,140,250,.4)}
+button.go:hover{filter:brightness(1.1)}
+.error{color:var(--red);margin-top:10px;min-height:1em;font-size:14px}
+
+/* winner */
+.winner{display:flex;gap:16px;align-items:center;border-radius:14px;padding:18px;margin-bottom:16px;
+  border:1px solid rgba(245,196,81,.6);
+  background:linear-gradient(120deg,rgba(245,196,81,.16),rgba(167,139,250,.1));
+  box-shadow:0 0 30px rgba(245,196,81,.12)}
+.winner .crest{font-size:38px}
+.winner h2{margin:0;font-family:var(--serif);font-size:22px;color:var(--gold)}
+.winner p{margin:4px 0 0}
+.winner .lead{font-size:15px;color:var(--muted)}
+.winner.tie{border-color:var(--line);background:var(--panel2)}
+
+/* ranking */
+.rank{display:grid;gap:12px}
+.rrow .top{display:flex;justify-content:space-between;gap:8px;font-size:14px;margin-bottom:5px}
+.rrow .top em{font-style:normal;color:var(--muted)}
+.track{height:14px;border-radius:7px;background:#080b1b;border:1px solid var(--line);overflow:hidden}
+.fill{height:100%;border-radius:7px;transition:width .5s ease}
+.fill.a{background:linear-gradient(90deg,#0ea5e9,var(--blue))}
+.fill.b{background:linear-gradient(90deg,#7c3aed,var(--purple))}
+
+/* compare cards */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{border-radius:12px;padding:16px;border:1px solid var(--line);background:#0a0e22;position:relative}
+.card.a{border-top:3px solid var(--blue)} .card.b{border-top:3px solid var(--purple)}
+.card.best{box-shadow:0 0 0 1px var(--gold),0 0 24px rgba(245,196,81,.18)}
+.card .tag{font-family:var(--serif);font-size:15px}
+.card.a .tag{color:var(--blue)} .card.b .tag{color:var(--purple)}
+.card .what{color:var(--muted);font-size:14px;margin-bottom:10px}
+.crown{position:absolute;top:10px;right:12px}
+dl{margin:0;display:grid;gap:8px}
+dl div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px dashed var(--line);padding-bottom:6px}
+dt{color:var(--muted);font-size:14px} dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+dd.hl{color:var(--green)}
+
+/* stat pool */
+.pool{display:grid;gap:14px}
+.prow .top{display:flex;justify-content:space-between;font-size:14px;margin-bottom:5px;gap:8px}
+.prow .top span:last-child{color:var(--muted);text-align:right}
+.stack{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#080b1b;border:1px solid var(--line)}
+.stack i{display:block;height:100%;transition:width .5s ease}
+.s-cur{background:var(--gold)} .s-a{background:var(--blue)} .s-b{background:var(--purple)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin-bottom:14px}
+.legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;background:var(--c)}
+
+details{margin-top:16px}
+summary{cursor:pointer;color:var(--muted);padding:6px 0}
+details p{margin:6px 0;color:var(--muted);font-size:14px}
+
+@media (max-width:820px){
+  .cols,.opts,.cards{grid-template-columns:1fr}
+  .dmg{text-align:left}
+}
+@media (prefers-reduced-motion:reduce){.fill,.stack i{transition:none}}
+
+/* ===== PREMIUM THEME (UI only) ===== */
+body{font-weight:400;letter-spacing:.01em;
+  background:
+   radial-gradient(1px 1px at 12% 22%,rgba(255,255,255,.4),transparent),
+   radial-gradient(1px 1px at 78% 14%,rgba(255,255,255,.3),transparent),
+   radial-gradient(1.5px 1.5px at 55% 40%,rgba(167,139,250,.5),transparent),
+   radial-gradient(1px 1px at 90% 62%,rgba(255,255,255,.25),transparent),
+   radial-gradient(1px 1px at 30% 80%,rgba(56,189,248,.4),transparent),
+   radial-gradient(900px 520px at 12% -10%,rgba(167,139,250,.22),transparent 60%),
+   radial-gradient(800px 520px at 92% 0%,rgba(56,189,248,.16),transparent 60%),
+   var(--void)}
+.hero{border-bottom:0;position:relative;padding-bottom:26px}
+.hero::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),var(--purple),transparent);opacity:.7}
+.hero h1{font-weight:900;letter-spacing:.07em;text-shadow:none;
+  background:linear-gradient(180deg,#fff4c9 0%,#f5c451 55%,#b8872b 100%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(245,196,81,.28))}
+.hero p{font-weight:300;letter-spacing:.04em}
+.dmg b{font-weight:700;text-shadow:none;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 16px rgba(124,140,250,.4))}
+.panel{position:relative;border-radius:16px;padding:22px;
+  background:linear-gradient(160deg,rgba(27,33,70,.88),rgba(11,14,34,.94));
+  border:1px solid rgba(245,196,81,.16);
+  box-shadow:0 24px 50px -26px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.05)}
+.panel::before{content:"";position:absolute;left:26px;right:26px;top:-1px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.75}
+.panel h2{display:flex;align-items:center;gap:12px;font-weight:700;font-size:15px;letter-spacing:.14em;margin-bottom:18px}
+.panel h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,rgba(245,196,81,.45),transparent)}
+.field label{font-weight:300;letter-spacing:.03em}
+input,select{font-weight:400;background:rgba(5,7,18,.85);border-color:#2a3363;
+  transition:border-color .15s,box-shadow .15s}
+input:hover,select:hover{border-color:#3b4690}
+input:focus,select:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(56,189,248,.18)}
+.opt{border-radius:14px}
+.opt.a{background:linear-gradient(160deg,rgba(56,189,248,.09),transparent 60%),#0a0e22}
+.opt.b{background:linear-gradient(160deg,rgba(167,139,250,.1),transparent 60%),#0a0e22}
+.opt h3{font-weight:700;letter-spacing:.1em}
+button.go{position:relative;overflow:hidden;font-weight:600;letter-spacing:.05em;border-radius:12px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.12) inset,0 8px 28px -6px rgba(124,140,250,.55)}
+button.go::after{content:"";position:absolute;inset:0;transform:translateX(-100%);
+  background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.4) 50%,transparent 70%)}
+button.go:hover::after{transform:translateX(100%);transition:transform .7s ease}
+.winner{border-radius:16px;padding:20px 22px;gap:18px;
+  background:radial-gradient(500px 160px at 0% 0%,rgba(245,196,81,.2),transparent 70%),
+  linear-gradient(120deg,rgba(245,196,81,.1),rgba(167,139,250,.12))}
+.winner .crest{flex:none;width:64px;height:64px;display:grid;place-items:center;border-radius:50%;font-size:30px;
+  background:radial-gradient(circle,rgba(245,196,81,.32),transparent 70%);border:1px solid rgba(245,196,81,.5)}
+.winner h2{font-weight:700;letter-spacing:.06em}
+.card{border-radius:14px}
+.card .tag{font-weight:700;letter-spacing:.1em}
+.card dl div:first-child dd{font-family:var(--serif);font-size:22px;font-weight:700}
+dt{font-weight:300}
+dd{font-weight:500}
+.track,.stack{background:rgba(5,7,18,.9)}
+.fill.a{box-shadow:0 0 14px rgba(56,189,248,.5)}
+.fill.b{box-shadow:0 0 14px rgba(167,139,250,.5)}
+summary{font-weight:500;letter-spacing:.04em}
+@media (max-width:820px){.panel{padding:18px}.hero h1{letter-spacing:.04em}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div>
+    <h1>Ragnarok: The New World</h1>
+    <p>Build Analyzer · เปรียบเทียบ Stat ว่าอัปเกรดอันไหนคุ้มกว่า</p>
+  </div>
+  <div class="dmg"><b id="heroDamage">-</b><span>Damage / Hit ปัจจุบัน</span></div>
+</header>
+
+<div class="cols">
+  <section class="panel">
+    <h2>Current Build</h2>
+    <div class="fields">
+      <div class="field"><label for="baseAtk">Base ATK</label><input id="baseAtk" type="number" value="6000"></div>
+      <div class="field"><label for="atkFlat">ATK Flat</label><input id="atkFlat" type="number" value="500"></div>
+      <div class="field"><label for="atkPercent">ATK %</label><input id="atkPercent" type="number" value="50"></div>
+      <div class="field"><label for="damageBonusPercent">Damage Bonus %</label><input id="damageBonusPercent" type="number" value="20"></div>
+      <div class="field"><label for="finalFixed">Final Fixed Damage</label><input id="finalFixed" type="number" value="236"></div>
+      <div class="field"><label for="averageHit">Average Damage / Hit</label><input id="averageHit" type="number" value="10000"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Upgrade Options</h2>
+    <div class="opts">
+      <div class="opt a">
+        <h3>Option A</h3>
+        <div class="field"><label for="optionAType">Stat</label>
+          <select id="optionAType">
+            <option value="atkFlat">ATK Flat</option><option value="atkPercent">ATK %</option>
+            <option value="damageBonus">Damage Bonus %</option><option value="finalFixed">Final Fixed Damage</option>
+          </select></div>
+        <div class="field"><label for="optionAValue">จำนวนที่เพิ่ม</label><input id="optionAValue" type="number" value="100"></div>
+      </div>
+      <div class="opt b">
+        <h3>Option B</h3>
+        <div class="field"><label for="optionBType">Stat</label>
+          <select id="optionBType">
+            <option value="atkFlat">ATK Flat</option><option value="atkPercent">ATK %</option>
+            <option value="damageBonus">Damage Bonus %</option><option value="finalFixed">Final Fixed Damage</option>
+          </select></div>
+        <div class="field"><label for="optionBValue">จำนวนที่เพิ่ม</label><input id="optionBValue" type="number" value="5"></div>
+      </div>
+    </div>
+    <button class="go" onclick="calculate()">Compare Upgrades</button>
+    <div id="error" class="error" role="alert"></div>
+  </section>
+</div>
+
+<div id="winner" class="mt"></div>
+
+<div class="cols mt">
+  <section class="panel">
+    <h2>Effective Gain Ranking</h2>
+    <div id="ranking" class="rank"></div>
+  </section>
+  <section class="panel">
+    <h2>Comparison</h2>
+    <div id="cards" class="cards"></div>
+  </section>
+</div>
+
+<section class="panel mt">
+  <h2>Stat Pool</h2>
+  <div class="legend">
+    <span style="--c:var(--gold)">ค่าปัจจุบัน</span>
+    <span style="--c:var(--blue)">เพิ่มจาก Option A</span>
+    <span style="--c:var(--purple)">เพิ่มจาก Option B</span>
+  </div>
+  <div id="pool" class="pool"></div>
+</section>
+
+<details class="panel">
+  <summary>สูตรที่ใช้คำนวณ</summary>
+  <p>ATK Flat: Added ATK / Base ATK × 100</p>
+  <p>ATK %: Added ATK% / (100 + Current ATK%) × 100</p>
+  <p>Damage Bonus %: Added Damage Bonus% / (100 + Current Damage Bonus%) × 100</p>
+  <p>Final Fixed: Added Final Fixed / Current Damage Per Hit × 100</p>
+</details>
+
+</div>
+
+<script>
+/* ============================================================
+   PART 1 — RNTW CALCULATION ENGINE  (ห้ามแก้ไขโดยไม่ได้รับอนุญาต)
+   ฟังก์ชันในส่วนนี้ไม่แตะ DOM ทั้งหมด — สูตรเหมือน V1 ทุกตัวอักษร
+   ============================================================ */
+
+function calculateCurrentDamage(build) {
+  return build.averageHit;
+}
+
+function calculateAtkFlatGain(addedAtk, baseAtk) {
+  if (baseAtk <= 0) {
+    return 0;
+  }
+  return (addedAtk / baseAtk) * 100;
+}
+
+function calculateAtkPercentGain(addedPercent, currentPercent) {
+  return (addedPercent / (100 + currentPercent)) * 100;
+}
+
+function calculateDamageBonusGain(addedPercent, currentPercent) {
+  return (addedPercent / (100 + currentPercent)) * 100;
+}
+
+function calculateFinalFixedGain(addedFinal, currentDamage) {
+  if (currentDamage <= 0) {
+    return 0;
+  }
+  return (addedFinal / currentDamage) * 100;
+}
+
+function calculateEffectiveGain(type, value, build) {
+  switch (type) {
+    case "atkFlat":
+      return calculateAtkFlatGain(value, build.baseAtk);
+    case "atkPercent":
+      return calculateAtkPercentGain(value, build.atkPercent);
+    case "damageBonus":
+      return calculateDamageBonusGain(value, build.damageBonusPercent);
+    case "finalFixed":
+      return calculateFinalFixedGain(value, build.averageHit);
+    default:
+      return 0;
+  }
+}
+
+function calculateNewDamage(type, value, build) {
+  const currentDamage = calculateCurrentDamage(build);
+  if (type === "finalFixed") {
+    return currentDamage + value;
+  }
+  const effectiveGain = calculateEffectiveGain(type, value, build);
+  return currentDamage * (1 + effectiveGain / 100);
+}
+
+function calculateOption(type, value, build) {
+  const currentDamage = calculateCurrentDamage(build);
+  const effectiveGain = calculateEffectiveGain(type, value, build);
+  const newDamage = calculateNewDamage(type, value, build);
+  const actualIncrease = ((newDamage - currentDamage) / currentDamage) * 100;
+  return { type, value, effectiveGain, newDamage, actualIncrease };
+}
+
+/* ============================================================
+   PART 2 — UI LAYER  (อ่านค่าจากฟอร์ม + แสดงผล, เรียกใช้ Engine เท่านั้น)
+   ============================================================ */
+
+const $ = (id) => document.getElementById(id);
+const num = (id) => Number($(id).value) || 0;
+
+function getBuild() {
+  return {
+    baseAtk: num("baseAtk"),
+    atkFlat: num("atkFlat"),
+    atkPercent: num("atkPercent"),
+    damageBonusPercent: num("damageBonusPercent"),
+    finalFixed: num("finalFixed"),
+    averageHit: num("averageHit")
+  };
+}
+
+function formatNumber(value) {
+  return Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
+}
+
+function getStatName(type) {
+  const names = { atkFlat: "ATK Flat", atkPercent: "ATK %", damageBonus: "Damage Bonus %", finalFixed: "Final Fixed Damage" };
+  return names[type] || type;
+}
+
+function renderRanking(a, b, max) {
+  const row = (cls, label, o) => `
+    <div class="rrow">
+      <div class="top"><span>${label} · ${getStatName(o.type)} +${o.value}</span><b>${o.effectiveGain.toFixed(2)}%</b></div>
+      <div class="track"><div class="fill ${cls}" style="width:${max > 0 ? (o.effectiveGain / max) * 100 : 0}%"></div></div>
+    </div>`;
+  const items = [["a", "Option A", a], ["b", "Option B", b]]
+    .sort((x, y) => y[2].effectiveGain - x[2].effectiveGain);
+  $("ranking").innerHTML = items.map(([c, l, o]) => row(c, l, o)).join("");
+}
+
+function renderCards(a, b, winner) {
+  const card = (cls, label, o, isBest) => `
+    <div class="card ${cls} ${isBest ? "best" : ""}">
+      ${isBest ? '<span class="crown">🏆</span>' : ""}
+      <div class="tag">${label}</div>
+      <div class="what">${getStatName(o.type)} +${o.value}</div>
+      <dl>
+        <div><dt>Effective Gain</dt><dd class="hl">${o.effectiveGain.toFixed(2)}%</dd></div>
+        <div><dt>New Damage</dt><dd>${formatNumber(o.newDamage)}</dd></div>
+        <div><dt>Actual Damage Increase</dt><dd>+${o.actualIncrease.toFixed(2)}%</dd></div>
+      </dl>
+    </div>`;
+  $("cards").innerHTML = card("a", "Option A", a, winner === "A") + card("b", "Option B", b, winner === "B");
+}
+
+function renderPool(build, a, b) {
+  const rows = [
+    ["atkFlat", "ATK Flat", build.atkFlat, ""],
+    ["atkPercent", "ATK %", build.atkPercent, "%"],
+    ["damageBonus", "Damage Bonus %", build.damageBonusPercent, "%"],
+    ["finalFixed", "Final Fixed Damage", build.finalFixed, ""]
+  ];
+  $("pool").innerHTML = rows.map(([type, name, cur, unit]) => {
+    const addA = a.type === type ? a.value : 0;
+    const addB = b.type === type ? b.value : 0;
+    const total = Math.max(cur, 0) + addA + addB || 1;
+    const w = (v) => (Math.max(v, 0) / total) * 100;
+    const note = [addA ? `A +${addA}${unit}` : "", addB ? `B +${addB}${unit}` : ""].filter(Boolean).join(" · ");
+    return `
+      <div class="prow">
+        <div class="top"><span>${name}</span><span>${formatNumber(cur)}${unit}${note ? " · " + note : ""}</span></div>
+        <div class="stack">
+          <i class="s-cur" style="width:${w(cur)}%"></i>
+          <i class="s-a" style="width:${w(addA)}%"></i>
+          <i class="s-b" style="width:${w(addB)}%"></i>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function renderWinner(a, b, winner) {
+  if (winner === "TIE") {
+    $("winner").innerHTML = `
+      <div class="winner tie"><div class="crest">⚖️</div>
+        <div><h2>Effective Gain เท่ากัน</h2><p class="lead">ทั้งสองตัวเลือกให้ผลเท่ากัน เลือกตัวที่หาได้ง่ายกว่าได้เลย</p></div></div>`;
+    return;
+  }
+  const w = winner === "A" ? a : b;
+  const l = winner === "A" ? b : a;
+  const diff = w.effectiveGain - l.effectiveGain;
+  $("winner").innerHTML = `
+    <div class="winner"><div class="crest">🏆</div>
+      <div>
+        <h2>แนะนำ Option ${winner}</h2>
+        <p><b>${getStatName(w.type)} +${w.value}</b> มี Effective Gain สูงกว่า</p>
+        <p class="lead">นำอยู่ +${diff.toFixed(2)}% · Damage ใหม่ ${formatNumber(w.newDamage)}</p>
+      </div></div>`;
+}
+
+function calculate() {
+  $("error").innerText = "";
+  const build = getBuild();
+
+  if (build.baseAtk <= 0) { $("error").innerText = "Base ATK ต้องมากกว่า 0"; return; }
+  if (build.averageHit <= 0) { $("error").innerText = "Average Damage / Hit ต้องมากกว่า 0"; return; }
+
+  const optionAType = $("optionAType").value;
+  const optionAValue = num("optionAValue");
+  const optionBType = $("optionBType").value;
+  const optionBValue = num("optionBValue");
+
+  if (optionAValue <= 0 || optionBValue <= 0) { $("error").innerText = "ค่าของ Upgrade ต้องมากกว่า 0"; return; }
+
+  const optionA = calculateOption(optionAType, optionAValue, build);
+  const optionB = calculateOption(optionBType, optionBValue, build);
+
+  $("heroDamage").innerText = formatNumber(build.averageHit);
+
+  let winner;
+  if (optionA.effectiveGain > optionB.effectiveGain) winner = "A";
+  else if (optionB.effectiveGain > optionA.effectiveGain) winner = "B";
+  else winner = "TIE";
+
+  renderWinner(optionA, optionB, winner);
+  renderRanking(optionA, optionB, Math.max(optionA.effectiveGain, optionB.effectiveGain));
+  renderCards(optionA, optionB, winner);
+  renderPool(build, optionA, optionB);
+}
+
+document.querySelectorAll("input,select").forEach((el) => el.addEventListener("input", calculate));
+calculate();
+</script>
+</body>
+</html>
